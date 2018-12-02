@@ -110,7 +110,6 @@
 			case "hide":
 				roundTimePassed += delta;
 				if( roundTimeText ) {
-					console.log(roundTimeText);
 					roundTimeText.text = msToTime( roundTime - roundTimePassed );
 					if( roundTimePassed >= roundTime ) {
 						gamePhase = "reveal";
@@ -124,9 +123,9 @@
 			}
 
 			labels.forEach( x => {
-				// console.log( x.body.position.y );
 				x.label.x = x.body.position.x;
 				x.label.y = x.body.position.y - x.body.gameObject.height * 0.75;
+				x.label.visible = x.body.gameObject.visible;
 			});
 		}
 
@@ -272,12 +271,12 @@
 			});
 		}
 
-		function addPuppy( x, y, name ) {
-			var puppy = phaser.matter.add.image( x, y, puppyimages[ getRandomInt( puppyimages.length ) ] );
+		function addPuppy( x, y, name, color ) {
+			var puppy = phaser.matter.add.image( x, y, players[ name ].breed );
 			puppy.setFriction(0.9);
 			// puppy.setFrictionAir(0.0005);
 			puppy.setBounce(0.9);
-			attachLabel( puppy.body, name );
+			attachLabel( puppy.body, name, color );
 			return puppy;
 		}
 
@@ -342,12 +341,14 @@
 						if( message.startsWith( "!doggo" ) && !players[ username ] ) {
 							players[ username ] = {
 								username: username,
-								alive: true
+								alive: true,
+								breed: puppyimages[ getRandomInt( puppyimages.length ) ],
+								color: color
 							};
 							console.log( username + " has joined!" );
 
 							if( !readyPuppies[ username ] ) {
-								var puppy = phaser.matter.add.image( getRandomInt( width ), 0, puppyimages[ getRandomInt( puppyimages.length ) ] );
+								var puppy = phaser.matter.add.image( getRandomInt( width ), 0, players[ username ].breed );
 								puppy.setCircle();
 								puppy.setFriction(0.9);
 								// puppy.setFrictionAir(0.0005);
@@ -379,28 +380,24 @@
 							if( players[ username ] ) {
 								players[ username ].team = 0;
 								readyPuppies[ username ].puppy.visible = false;
-								readyPuppies[ username ].label.visible = false;
 							}
 							break;
 						case "!2":
 							if( players[ username ] ) {
 								players[ username ].team = 1;
 								readyPuppies[ username ].puppy.visible = false;
-								readyPuppies[ username ].label.visible = false;
 							}
 							break;
 						case "!3":
 							if( players[ username ] ) {
 								players[ username ].team = 2;
 								readyPuppies[ username ].puppy.visible = false;
-								readyPuppies[ username ].label.visible = false;
 							}
 							break;
 						case "!4":
 							if( players[ username ] ) {
 								players[ username ].team = 3;
 								readyPuppies[ username ].puppy.visible = false;
-								readyPuppies[ username ].label.visible = false;
 							}
 							break;
 						}
@@ -414,10 +411,10 @@
 							if( teamMembers.length > 0 ) {
 								teamMembers.forEach( p => {
 									var dir = Math.PI / 180 * getRandomInt( 180 );
-									addPuppy( boxX[ 0 ] + 5 * Math.cos( dir ), boxY[ 0 ] - Math.abs( 5 * Math.sin( dir ) ), p );
+									addPuppy( boxX[ 0 ] + 5 * Math.cos( dir ), boxY[ 0 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
 								});
 								explode( boxX[ 0 ], boxY[ 0 ], 150, 50, 100 );
-								gamePhase = "sacrifice";
+								// gamePhase = "sacrifice";
 							}
 							break;
 						case "!2":
@@ -425,10 +422,10 @@
 							if( teamMembers.length > 0 ) {
 								teamMembers.forEach( p => {
 									var dir = Math.PI / 180 * getRandomInt( 180 );
-									addPuppy( boxX[ 1 ] + 5 * Math.cos( dir ), boxY[ 1 ] - Math.abs( 5 * Math.sin( dir ) ), p );
+									addPuppy( boxX[ 1 ] + 5 * Math.cos( dir ), boxY[ 1 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
 								});
 								explode( boxX[ 1 ], boxY[ 1 ], 150, 50, 100 );
-								gamePhase = "sacrifice";
+								// gamePhase = "sacrifice";
 							}
 							break;
 						case "!3":
@@ -436,10 +433,10 @@
 							if( teamMembers.length > 0 ) {
 								teamMembers.forEach( p => {
 									var dir = Math.PI / 180 * getRandomInt( 180 );
-									addPuppy( boxX[ 2 ] + 5 * Math.cos( dir ), boxY[ 2 ] - Math.abs( 5 * Math.sin( dir ) ), p );
+									addPuppy( boxX[ 2 ] + 5 * Math.cos( dir ), boxY[ 2 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
 								});
 								explode( boxX[ 2 ], boxY[ 2 ], 150, 50, 100 );
-								gamePhase = "sacrifice";
+								// gamePhase = "sacrifice";
 							}
 							break;
 						case "!4":
@@ -447,10 +444,10 @@
 							if( teamMembers.length > 0 ) {
 								teamMembers.forEach( p => {
 									var dir = Math.PI / 180 * getRandomInt( 180 );
-									addPuppy( boxX[ 3 ] + 5 * Math.cos( dir ), boxY[ 3 ] - Math.abs( 5 * Math.sin( dir ) ), p );
+									addPuppy( boxX[ 3 ] + 5 * Math.cos( dir ), boxY[ 3 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
 								});
 								explode( boxX[ 3 ], boxY[ 3 ], 150, 50, 100 );
-								gamePhase = "sacrifice";
+								// gamePhase = "sacrifice";
 							}
 							break;
 						}
