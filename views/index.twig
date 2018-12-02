@@ -56,6 +56,8 @@
 		var puppyEndText = undefined;
 		var puppySurvivors = undefined;
 		var catEndText = undefined;
+		var catText = undefined;
+		var cat1 = undefined, cat2 = undefined;
 
 		//Individual Blocks within a Pillar
 		var PillarBlock = {
@@ -80,7 +82,7 @@
 			this.load.image('hammer', 'images/hammer.png');
 			// this.load.image('puppy', 'images/Pupachu.png');
 			this.load.image("cat1", 'images/catastrophe1.png');
-			this.load.image("cat2", 'images/catstrophe2.png');
+			this.load.image("cat2", 'images/catastrophe2.png');
 			this.load.image(puppyimages[ 0 ], 'images/doggo1.png');
 			this.load.image(puppyimages[ 1 ], 'images/doggo2.png');
 			this.load.image(puppyimages[ 2 ], 'images/doggo3.png');
@@ -96,7 +98,7 @@
 			this.matter.add.mouseSpring();
 			WebFont.load({
 				google: {
-					families: [ 'Bubblegum Sans' ]
+					families: [ 'Bubblegum Sans', 'Gloria Hallelujah' ]
 				},
 				active: function ()
 				{
@@ -122,6 +124,7 @@
 						showJoin( false );
 						showMenu( false );
 						showGame( true );
+						showSacrifice( true );
 						showEndgame( false );
 					}
 				}
@@ -151,9 +154,12 @@
 			return menuGroup;
 		}
 
-		// function createSacrifice() {
-		// 	cat1
-		// }
+		function createSacrifice() {
+			catText = phaser.add.text( 1150, 700, "I AM THE CAPTAIN OF CATASTROPHE!", { fontFamily: 'Gloria Hallelujah', fontSize: 40, fontStyle: "Bold", color: '#FFFFFF' } ).setOrigin( 1, 0.5 );
+			cat1 = phaser.add.image( 1400, 700, "cat1" );
+			cat2 = phaser.add.image( 1400, 700, "cat2" );
+			cat2.visible = false;
+		}
 
 		function createPuppyEnd() {
 			puppyEndText = phaser.add.text( 960, 300, "THE PUPPIES SURVIVE", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 );
@@ -264,6 +270,12 @@
 			
 		}
 
+		function showSacrifice( shouldShow ) {
+			cat1.visible = shouldShow;
+			cat2.visible = false;
+			catText.visible = shouldShow;
+		}
+
 		function showEndgame( shouldShow ) {
 			menuGroup.children.entries.forEach( x => x.visible = !shouldShow );
 		}
@@ -271,10 +283,14 @@
 		function startGame() {
 			gamePhase = "join";
 			createGameObjects();
+			createSacrifice();
 			createMenu();
 			showJoin( true );
 			showMenu( false );
 			showGame( false );
+			showSacrifice( false );
+			// showGame( true );
+			// showSacrifice( true );
 			showEndgame( false );
 		}
 
@@ -365,6 +381,7 @@
 							showJoin( false );
 							showMenu( true );
 							showGame( false );
+							showSacrifice( false );
 							showEndgame( false );
 						}
 					}
@@ -401,6 +418,7 @@
 							showJoin( false );
 							showMenu( false );
 							showGame( true );
+							showSacrifice( true );
 							showEndgame( false );
 						}
 					}
@@ -436,6 +454,7 @@
 						showJoin( false );
 						showMenu( false );
 						showGame( true );
+						showSacrifice( true );
 						showEndgame( false );
 					}
 					break;
@@ -458,6 +477,7 @@
 								showJoin( false );
 								showMenu( false );
 								showGame( false );
+								showSacrifice( false );
 								showEndgame( true );
 								createPuppyEnd();
 							}
@@ -478,6 +498,7 @@
 								showJoin( false );
 								showMenu( false );
 								showGame( false );
+								showSacrifice( false );
 								showEndgame( true );
 								createPuppyEnd();
 							}
@@ -498,6 +519,7 @@
 								showJoin( false );
 								showMenu( false );
 								showGame( false );
+								showSacrifice( false );
 								showEndgame( true );
 								createPuppyEnd();
 							}
@@ -518,6 +540,7 @@
 								showJoin( false );
 								showMenu( false );
 								showGame( false );
+								showSacrifice( false );
 								showEndgame( true );
 								createPuppyEnd();
 							}
