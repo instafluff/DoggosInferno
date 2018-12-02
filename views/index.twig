@@ -45,7 +45,7 @@
 		var boxesText = [];
 		var round = 0;
 		var maxRound = 7;
-		var gamePhase = "join"; // "join", "hide", "reveal", "sacrifice", "survived", "annihilated"
+		var gamePhase = "join"; // "join", "hide", "sacrifice", "survived", "annihilated"
 		var streamerLives = 1;
 		var roundTimePassed = 0;
 		var roundTime = 60000;
@@ -53,6 +53,9 @@
 		var roundTimeText = undefined;
 		var boxX = [ 350, 750, 1150, 1550 ];
 		var boxY = [ 350, 350, 350, 350 ];
+		var puppyEndText = undefined;
+		var puppySurvivors = undefined;
+		var catEndText = undefined;
 
 		//Individual Blocks within a Pillar
 		var PillarBlock = {
@@ -76,6 +79,8 @@
 			this.load.image('smoke_cloud', 'images/smoke.png');
 			this.load.image('hammer', 'images/hammer.png');
 			// this.load.image('puppy', 'images/Pupachu.png');
+			this.load.image("cat1", 'images/catastrophe1.png');
+			this.load.image("cat2", 'images/catstrophe2.png');
 			this.load.image(puppyimages[ 0 ], 'images/doggo1.png');
 			this.load.image(puppyimages[ 1 ], 'images/doggo2.png');
 			this.load.image(puppyimages[ 2 ], 'images/doggo3.png');
@@ -112,11 +117,12 @@
 				if( roundTimeText ) {
 					roundTimeText.text = msToTime( roundTime - roundTimePassed );
 					if( roundTimePassed >= roundTime ) {
-						gamePhase = "reveal";
+						gamePhase = "sacrifice";
 						roundTimePassed = 0;
 						showJoin( false );
 						showMenu( false );
 						showGame( true );
+						showEndgame( false );
 					}
 				}
 				break;
@@ -143,6 +149,24 @@
 			roundTimeText = phaser.add.text( 950, 100, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 );
 			joinText = phaser.add.text( 950, 100, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 );
 			return menuGroup;
+		}
+
+		// function createSacrifice() {
+		// 	cat1
+		// }
+
+		function createPuppyEnd() {
+			puppyEndText = phaser.add.text( 960, 300, "THE PUPPIES SURVIVE", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 );
+			// List of survived puppies
+			var survived = Object.keys( players ).filter( p => players[ p ].alive);
+			console.log( "Survived Players:", survived );
+			puppySurvivors = phaser.add.text( 500, 400, survived.join( "\n" ), { fontFamily: 'Bubblegum Sans', fontSize: 40, fontStyle: "Bold", color: '#ffffff' } );
+			return puppyEndText;
+		}
+
+		function createCatpocalypseEnd() {
+			catEndText = phaser.add.text( 960, 300, "CAPTAIN OF CATASTROPHE HAS CONQUERED", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 0.5 );
+			return catEndText;
 		}
 
 		function createGameObjects() {
@@ -237,6 +261,11 @@
 		function showGame( shouldShow ) {
 			bricks.forEach( x => x.visible = shouldShow );
 			lava.forEach( x => x.visible = shouldShow );
+			
+		}
+
+		function showEndgame( shouldShow ) {
+			menuGroup.children.entries.forEach( x => x.visible = !shouldShow );
 		}
 
 		function startGame() {
@@ -246,10 +275,11 @@
 			showJoin( true );
 			showMenu( false );
 			showGame( false );
+			showEndgame( false );
 		}
 
 		function attachLabel( body, text, color = "#ffffff" ) {
-			var labelText = phaser.add.text(body.position.x, body.position.y - body.gameObject.height, text, { fontFamily: 'Bubblegum Sans', fontSize: 64, fontStyle: "Bold", color: color } ).setOrigin( 0.5 );
+			var labelText = phaser.add.text(body.position.x, body.position.y - body.gameObject.height, text, { fontFamily: 'Bubblegum Sans', fontSize: 50, fontStyle: "Bold", color: color } ).setOrigin( 0.5 );
 			labels.push( {
 				label: labelText,
 				body: body
@@ -329,37 +359,36 @@
 				switch( gamePhase ) {
 				case "join":
 					if( isStreamer ) {
-						if( message.startsWith( "!startdoggo" ) ) {
+						if( message.startsWith( "!letitdoggo" ) ) {
 							gamePhase = "hide";
 							roundTimePassed = 0;
 							showJoin( false );
 							showMenu( true );
 							showGame( false );
+							showEndgame( false );
 						}
 					}
-					else {
-						if( message.startsWith( "!doggo" ) && !players[ username ] ) {
-							players[ username ] = {
-								username: username,
-								alive: true,
-								breed: puppyimages[ getRandomInt( puppyimages.length ) ],
-								color: color
-							};
-							console.log( username + " has joined!" );
+					if( message.startsWith( "!doggo" ) && !players[ username ] ) {
+						players[ username ] = {
+							username: username,
+							alive: true,
+							breed: puppyimages[ getRandomInt( puppyimages.length ) ],
+							color: color
+						};
+						console.log( username + " has joined!" );
 
-							if( !readyPuppies[ username ] ) {
-								var puppy = phaser.matter.add.image( getRandomInt( width ), 0, players[ username ].breed );
-								puppy.setCircle();
-								puppy.setFriction(0.9);
-								// puppy.setFrictionAir(0.0005);
-								puppy.setBounce(0.9);
-								puppy.setVelocity( 0, 20 );
-								var label = attachLabel( puppy.body, userstate[ "display-name" ], color );
-								readyPuppies[ username ] = {
-									username: username,
-									puppy: puppy,
-									label: label
-								}
+						if( !readyPuppies[ username ] ) {
+							var puppy = phaser.matter.add.image( getRandomInt( width ), 0, players[ username ].breed );
+							puppy.setCircle();
+							puppy.setFriction(0.9);
+							// puppy.setFrictionAir(0.0005);
+							puppy.setBounce(0.9);
+							puppy.setVelocity( 0, 20 );
+							var label = attachLabel( puppy.body, userstate[ "display-name" ], color );
+							readyPuppies[ username ] = {
+								username: username,
+								puppy: puppy,
+								label: label
 							}
 						}
 					}
@@ -367,43 +396,50 @@
 				case "hide":
 					if( isStreamer ) {
 						if( message == "!ready" ) {
-							gamePhase = "reveal";
+							gamePhase = "sacrifice";
 							roundTimePassed = 0;
 							showJoin( false );
 							showMenu( false );
 							showGame( true );
+							showEndgame( false );
 						}
 					}
-					else {
-						switch( message.split( " " )[ 0 ] ) {
-						case "!1":
-							if( players[ username ] ) {
-								players[ username ].team = 0;
-								readyPuppies[ username ].puppy.visible = false;
-							}
-							break;
-						case "!2":
-							if( players[ username ] ) {
-								players[ username ].team = 1;
-								readyPuppies[ username ].puppy.visible = false;
-							}
-							break;
-						case "!3":
-							if( players[ username ] ) {
-								players[ username ].team = 2;
-								readyPuppies[ username ].puppy.visible = false;
-							}
-							break;
-						case "!4":
-							if( players[ username ] ) {
-								players[ username ].team = 3;
-								readyPuppies[ username ].puppy.visible = false;
-							}
-							break;
+					switch( message.split( " " )[ 0 ] ) {
+					case "!1":
+						if( players[ username ] ) {
+							players[ username ].team = 0;
+							readyPuppies[ username ].puppy.visible = false;
 						}
+						break;
+					case "!2":
+						if( players[ username ] ) {
+							players[ username ].team = 1;
+							readyPuppies[ username ].puppy.visible = false;
+						}
+						break;
+					case "!3":
+						if( players[ username ] ) {
+							players[ username ].team = 2;
+							readyPuppies[ username ].puppy.visible = false;
+						}
+						break;
+					case "!4":
+						if( players[ username ] ) {
+							players[ username ].team = 3;
+							readyPuppies[ username ].puppy.visible = false;
+						}
+						break;
+					}
+					if( Object.keys( readyPuppies ).filter( p => readyPuppies[ p ].puppy.visible ).length == 0 ) {
+						gamePhase = "sacrifice";
+						roundTimePassed = 0;
+						showJoin( false );
+						showMenu( false );
+						showGame( true );
+						showEndgame( false );
 					}
 					break;
-				case "reveal":
+				case "sacrifice":
 					if( isStreamer ) {
 						switch( message.split( " " )[ 0 ] ) {
 						case "!1":
@@ -412,9 +448,18 @@
 								teamMembers.forEach( p => {
 									var dir = Math.PI / 180 * getRandomInt( 180 );
 									addPuppy( boxX[ 0 ] + 5 * Math.cos( dir ), boxY[ 0 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+									players[ p ].alive = false;
 								});
 								explode( boxX[ 0 ], boxY[ 0 ], 150, 50, 100 );
 								// gamePhase = "sacrifice";
+							}
+							else {
+								gamePhase = "survived";
+								showJoin( false );
+								showMenu( false );
+								showGame( false );
+								showEndgame( true );
+								createPuppyEnd();
 							}
 							break;
 						case "!2":
@@ -423,9 +468,18 @@
 								teamMembers.forEach( p => {
 									var dir = Math.PI / 180 * getRandomInt( 180 );
 									addPuppy( boxX[ 1 ] + 5 * Math.cos( dir ), boxY[ 1 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+									players[ p ].alive = false;
 								});
 								explode( boxX[ 1 ], boxY[ 1 ], 150, 50, 100 );
 								// gamePhase = "sacrifice";
+							}
+							else {
+								gamePhase = "survived";
+								showJoin( false );
+								showMenu( false );
+								showGame( false );
+								showEndgame( true );
+								createPuppyEnd();
 							}
 							break;
 						case "!3":
@@ -434,9 +488,18 @@
 								teamMembers.forEach( p => {
 									var dir = Math.PI / 180 * getRandomInt( 180 );
 									addPuppy( boxX[ 2 ] + 5 * Math.cos( dir ), boxY[ 2 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+									players[ p ].alive = false;
 								});
 								explode( boxX[ 2 ], boxY[ 2 ], 150, 50, 100 );
 								// gamePhase = "sacrifice";
+							}
+							else {
+								gamePhase = "survived";
+								showJoin( false );
+								showMenu( false );
+								showGame( false );
+								showEndgame( true );
+								createPuppyEnd();
 							}
 							break;
 						case "!4":
@@ -445,9 +508,18 @@
 								teamMembers.forEach( p => {
 									var dir = Math.PI / 180 * getRandomInt( 180 );
 									addPuppy( boxX[ 3 ] + 5 * Math.cos( dir ), boxY[ 3 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+									players[ p ].alive = false;
 								});
 								explode( boxX[ 3 ], boxY[ 3 ], 150, 50, 100 );
 								// gamePhase = "sacrifice";
+							}
+							else {
+								gamePhase = "survived";
+								showJoin( false );
+								showMenu( false );
+								showGame( false );
+								showEndgame( true );
+								createPuppyEnd();
 							}
 							break;
 						}
