@@ -1,5 +1,10 @@
 -- A FLUFFY LUDUM DARE 43 IDEARS --
 
+- Move the puppy to the boxes to hide behind
+
+
+
+
 Doggo's Inferno
 Save The Puppy
 Puppy Pillars

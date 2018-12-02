@@ -10,7 +10,7 @@
 			type: Phaser.AUTO,
 			width: width, //1920
 			height: height, //1080
-    		// transparent: true, 
+    		transparent: true, 
 			parent: 'doggosinferno',
 			physics: {
 				default: 'matter',
@@ -26,6 +26,9 @@
 				preload: preload,
 				create: create,
 				update: update
+			},
+			audio: {
+				disableWebAudio: true
 			}
 		};
 
@@ -40,6 +43,7 @@
 		var labels = [];
 		var players = {};
 		var readyPuppies = {};
+		var explodedPuppies = {};
 		var menuGroup = undefined;
 		var boxes = [];
 		var boxesText = [];
@@ -59,6 +63,7 @@
 		var catText = undefined;
 		var catSound = undefined;
 		var cat1 = undefined, cat2 = undefined;
+		var isPlayingSacrificeSequence = false;
 
 		//Individual Blocks within a Pillar
 		var PillarBlock = {
@@ -88,6 +93,12 @@
 			this.load.image(puppyimages[ 1 ], 'images/doggo2.png');
 			this.load.image(puppyimages[ 2 ], 'images/doggo3.png');
 			this.load.audio('catastrophe', ['sounds/catastrophe.mp3']);
+			this.load.audio('lavaambience', ['sounds/lava_2.mp3']);
+			this.load.audio('pup0', ['sounds/pup.mp3']);
+			this.load.audio('pup1', ['sounds/pup2.mp3']);
+			this.load.audio('pup2', ['sounds/pup3.mp3']);
+			this.load.audio('pup3', ['sounds/pup4.mp3']);
+			this.load.audio('pupdeath', ['sounds/pupdeath.mp3']);
 			this.load.script('webfont', 'https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js');
 		}
 
@@ -121,6 +132,14 @@
 				if( roundTimeText ) {
 					roundTimeText.text = msToTime( roundTime - roundTimePassed );
 					if( roundTimePassed >= roundTime ) {
+						// Anyone that hasn't joined will be dead
+						Object.keys( players ).forEach( p => {
+							if( players[ p ].team < 0 && players[ p ].alive ) {
+								players[ p ].alive = false;
+								readyPuppies[ p ].puppy.visible = false;
+							}
+						});
+
 						gamePhase = "sacrifice";
 						roundTimePassed = 0;
 						showJoin( false );
@@ -132,12 +151,49 @@
 					}
 				}
 				break;
+			case "sacrifice":
+				if( isPlayingSacrificeSequence ) {
+					break;
+				}
+				if( Object.keys( explodedPuppies ).length == 0 ) {
+					Object.keys( players ).forEach( p => {
+						players[ p ].team = -1;
+						if( players[ p ].alive ) {
+							readyPuppies[ p ].puppy.visible = true;
+						}
+					} );
+					let puppiesRemaining = Object.keys( players ).filter( p => players[ p ].alive ).length > 0;
+					if( puppiesRemaining ) {
+						gamePhase = "hide";
+						showJoin( false );
+						showMenu( true );
+						showGame( false );
+						showSacrifice( false );
+						showEndgame( false );
+					}
+					else {
+						gamePhase = "annihilated";
+						showJoin( false );
+						showMenu( false );
+						showGame( false );
+						showSacrifice( false );
+						showEndgame( true );
+						createCatpocalypseEnd();
+					}
+				}
+				break;
 			}
 
 			labels.forEach( x => {
-				x.label.x = x.body.position.x;
-				x.label.y = x.body.position.y - x.body.gameObject.height * 0.75;
-				x.label.visible = x.body.gameObject.visible;
+				if( x.body.gameObject ) {
+					x.label.x = x.body.position.x;
+					x.label.y = x.body.position.y - x.body.gameObject.height * 0.75;
+					x.label.visible = x.body.gameObject.visible;
+				}
+				else {
+					x.label.visible = false;
+					// TODO: Destroy the label
+				}
 			});
 		}
 
@@ -167,7 +223,7 @@
 		function createPuppyEnd() {
 			puppyEndText = phaser.add.text( 960, 300, "THE PUPPIES SURVIVE", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 );
 			// List of survived puppies
-			var survived = Object.keys( players ).filter( p => players[ p ].alive);
+			var survived = Object.keys( players ).filter( p => players[ p ].alive );
 			console.log( "Survived Players:", survived );
 			puppySurvivors = phaser.add.text( 500, 400, survived.join( "\n" ), { fontFamily: 'Bubblegum Sans', fontSize: 40, fontStyle: "Bold", color: '#ffffff' } );
 			return puppyEndText;
@@ -234,23 +290,9 @@
 						// console.log( "COLLIDING WITH GROUND" );
 						if( bodyA == ground ) {
 							// console.log( bodyB );
-							if( pillars[ bodyB.id ] ) {
-								pillars[ bodyB.id ].isTouchGround = true;
-								// pillars[ bodyB.id ].health -= 1;
-								// if( pillars[ bodyB.id ].health <= 0 ) {
-								// 	pillars[ bodyB.id ].brick.destroy();
-								// }
-							}
 						}
 						else {
 							// console.log( bodyA );
-							if( pillars[ bodyA.id ] ) {
-								pillars[ bodyA.id ].isTouchGround = true;
-								// pillars[ bodyA.id ].health -= 1;
-								// if( pillars[ bodyA.id ].health <= 0 ) {
-								// 	pillars[ bodyA.id ].brick.destroy();
-								// }
-							}
 						}
 					}
 				}
@@ -280,10 +322,17 @@
 
 		function showEndgame( shouldShow ) {
 			menuGroup.children.entries.forEach( x => x.visible = !shouldShow );
+			if( shouldShow ) {
+				if( refreshTimer ) {
+					clearTimeout( refreshTimer );
+				}
+				refreshTimer = setTimeout(() => {
+					location.reload();
+				}, 20000);
+			}
 		}
 
 		function moveCat( x, y ) {
-			console.log( cat1 );
 			cat1.x = x;
 			cat1.y = y;
 			cat2.x = x;
@@ -295,26 +344,19 @@
 		function openBox( index ) {
 			var teamMembers = Object.keys( players ).filter( p => players[ p ].team == index );
 			if( teamMembers.length > 0 ) {
+				explodedPuppies = {};
 				teamMembers.forEach( p => {
 					var dir = Math.PI / 180 * getRandomInt( 180 );
-					addPuppy( boxX[ 0 ] + 5 * Math.cos( dir ), boxY[ 0 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+					let puppy = addPuppy( boxX[ index ] + 5 * Math.cos( dir ), boxY[ index ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+					console.log( puppy );
 					players[ p ].alive = false;
+					explodedPuppies[ p ] = puppy;
+					setTimeout( () => {
+						puppy.destroy();
+						delete explodedPuppies[ p ];
+					}, 5000 );
 				});
 				explode( boxX[ index ], boxY[ index ], 150, 50, 100 );
-				Object.keys( players ).forEach( p => {
-					players[ p ].team = -1;
-					if( players[ p ].alive ) {
-						readyPuppies[ p ].puppy.visible = true;
-					}
-				 } );
-				setTimeout(() => {
-					gamePhase = "hide";
-					showJoin( false );
-					showMenu( true );
-					showGame( false );
-					showSacrifice( false );
-					showEndgame( false );
-				}, 3000 );
 			}
 			else {
 				gamePhase = "survived";
@@ -328,7 +370,19 @@
 		}
 
 		function playSacrificeSequence() {
+			isPlayingSacrificeSequence = true;
 			moveCat( 1400, 700 );
+
+			// "The cat's out of the bag now."
+			// "Beep boop beep boop, you thought I was a robot but HA! You were wrong I'm the captain of catastrophe!"
+			// "The puppy doesn't fall far from the tree now does it!"
+			// "Rumble rumble let the puppies tumble"
+			// "A puppy walks into a bar... The floor is lava HA HA HA"
+			// "What did the dog say to the tree? Bark."
+			// "Pick wisely or it's going to be RUFF"
+			// "You're a watchdog you say? WELL WATCH THIS!"
+			// "You may have heard they did surgery on a grape but have to heard about DEATH?"
+			// "Trying to touch my catnip? How dare you!"
 
 			catSound = phaser.sound.add('catastrophe', { loop: false });
 			catSound.play();
@@ -361,6 +415,7 @@
 								var finalBox = getRandomInt( boxX.length );
 								moveCat( boxX[ finalBox ] + 30, boxY[ finalBox ] - 220 );
 								setTimeout(() => {
+									isPlayingSacrificeSequence = false;
 									openBox( finalBox );
 								}, 1000);
 							}, 2700);
@@ -371,6 +426,8 @@
 		}
 
 		function startGame() {
+			var ambience = phaser.sound.add('lavaambience', { loop: true });
+			ambience.play();
 			gamePhase = "join";
 			createGameObjects();
 			createMenu();
@@ -438,10 +495,6 @@
 		var client = null;
 
 		$( document ).ready(function() {
-			setTimeout(() => {
-				voices = window.speechSynthesis.getVoices();
-				console.log( voices );
-			}, 2000 );
 			// $("#fluffinko").hide();
 
 			var options = {
@@ -467,6 +520,7 @@
 				var isStreamer = channel == "#" + userstate[ "username" ];
 				var username = userstate[ "display-name" ];
 				var color = userstate[ "color" ];
+				var message = message.toLowerCase();
 				switch( gamePhase ) {
 				case "join":
 					if( isStreamer ) {
@@ -484,10 +538,13 @@
 						players[ username ] = {
 							username: username,
 							alive: true,
+							team: -1,
 							breed: puppyimages[ getRandomInt( puppyimages.length ) ],
 							color: color
 						};
 						console.log( username + " has joined!" );
+						var bark = phaser.sound.add('pup' + getRandomInt( 4 ), { loop: false });
+						bark.play();
 
 						if( !readyPuppies[ username ] ) {
 							var puppy = phaser.matter.add.image( getRandomInt( width ), 0, players[ username ].breed );
@@ -508,6 +565,14 @@
 				case "hide":
 					if( isStreamer ) {
 						if( message == "!ready" ) {
+							// Anyone that hasn't joined will be dead
+							Object.keys( players ).forEach( p => {
+								if( players[ p ].team < 0 && players[ p ].alive ) {
+									players[ p ].alive = false;
+									readyPuppies[ p ].puppy.visible = false;
+								}
+							});
+
 							gamePhase = "sacrifice";
 							roundTimePassed = 0;
 							showJoin( false );
