@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Doggo's Inferno!</title>
+    <link rel='stylesheet' href='stylesheets/style.css' />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+  	<script src="javascripts/tmi.min.js"></script>
+    <script src="javascripts/phaser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Permanent+Marker" rel="stylesheet">
+  </head>
+  <body>
+    
+	<div id="doggosinferno"></div>
+	<script>
+		var width = 1920;
+		var height = 1080;
+		const params = new URLSearchParams(location.search);
+
+		var config = {
+			type: Phaser.AUTO,
+			width: width, //1920
+			height: height, //1080
+    		transparent: params.get( "overlay" ), 
+			parent: 'doggosinferno',
+			physics: {
+				default: 'matter',
+				matter: {
+					gravity: {
+						y: 1.5
+					},
+					// debug: true,
+					debugBodyColor: 0xff00ff
+				}
+			},
+			scene: {
+				preload: preload,
+				create: create,
+				update: update
+			},
+			audio: {
+				disableWebAudio: true
+			}
+		};
+
+		var game = new Phaser.Game(config);
+		var phaser = undefined;
+		var refreshTimer = null;
+		var puppyimages = [ "puppy1", "puppy2", "puppy3", "puppy4", "puppy5", "puppy6" ];
+		var pillars = {};
+		var bricks = [];
+		var floor = null;
+		var lava = [];
+		var labels = [];
+		var players = {};
+		var readyPuppies = {};
+		var explodedPuppies = {};
+		var menuGroup = undefined;
+		var gameTitle = undefined;
+		var boxes = [];
+		var boxesText = [];
+		var round = 0;
+		var maxRound = 7;
+		var gamePhase = "join"; // "join", "hide", "sacrifice", "survived", "annihilated"
+		var streamerLives = 1;
+		var roundTimePassed = 0;
+		var roundTime = 45000;
+		var joinText = undefined;
+		var joinTimerText = undefined;
+		var roundTimeText = undefined;
+		var boxX = [ 350, 750, 1150, 1550 ];
+		var boxY = [ 350, 350, 350, 350 ];
+		var puppyEndText = undefined;
+		var puppySurvivors = undefined;
+		var catEndText = undefined;
+		var catText = undefined;
+		var catSound = undefined;
+		var cat1 = undefined, cat2 = undefined;
+		var isPlayingSacrificeSequence = false;
+
+		//Individual Blocks within a Pillar
+		var PillarBlock = {
+			blockHP: 100
+		};
+
+		//Each pillar consisting of an array of PillarBlock objects
+		var Pillar = {
+			playerName: "",
+			pillarBlocks: []
+		};
+
+		function preload ()
+		{
+			this.load.image('box1', 'images/box1.png');
+			this.load.image('box2', 'images/box2.png');
+			this.load.image('box3', 'images/box3.png');
+			this.load.image('box4', 'images/box4.png');
+			this.load.image('lava', 'images/lavablock.png');
+			this.load.image('pillar', 'images/pillar_middle.png');
+			this.load.image('smoke_cloud', 'images/smoke.png');
+			this.load.image('hammer', 'images/hammer.png');
+			this.load.image("cat1", 'images/catastrophe1.png');
+			this.load.image("cat2", 'images/catastrophe2.png');
+			this.load.image(puppyimages[ 0 ], 'images/doggo1.png');
+			this.load.image(puppyimages[ 1 ], 'images/doggo2.png');
+			this.load.image(puppyimages[ 2 ], 'images/doggo3.png');
+			this.load.image(puppyimages[ 3 ], 'images/doggo4.png');
+			this.load.image(puppyimages[ 4 ], 'images/doggo5.png');
+			this.load.image(puppyimages[ 5 ], 'images/Pupachu.png');
+			this.load.audio('catastrophe', ['sounds/catastrophe.mp3']);
+			this.load.audio('lavaambience', ['sounds/lava_2.mp3']);
+			this.load.audio('pup0', ['sounds/pup.mp3']);
+			this.load.audio('pup1', ['sounds/pup2.mp3']);
+			this.load.audio('pup2', ['sounds/pup3.mp3']);
+			this.load.audio('pup3', ['sounds/pup4.mp3']);
+			this.load.audio('pupdeath', ['sounds/pupdeath.mp3']);
+			this.load.script('webfont', 'https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js');
+		}
+
+		function create()
+		{
+			phaser = this;
+			this.game.antialias = true;
+			this.game.clearBeforeRender = true;
+			this.matter.world.setBounds();
+			this.matter.add.mouseSpring();
+			WebFont.load({
+				google: {
+					families: [ 'Bubblegum Sans', 'Gloria Hallelujah' ]
+				},
+				active: function ()
+				{
+					startGame();
+				}
+			});
+		}
+
+		function update( time, delta ) {
+			switch( gamePhase ) {
+			case "join":
+				if( joinText ) {
+					if( params.get( "channel" ) ) {
+						joinText.text = "Type !doggo to join";
+					}
+					else {
+						joinText.text = "Please specify a Twitch channel in the URL";
+						joinText.setColor( "#ff0000" );
+						joinText.setFontSize( 64 );
+					}
+				}
+				if( joinTimerText ) {
+					if( Object.keys( players ).length > 0 ) {
+						roundTimePassed += delta;
+						joinTimerText.visible = true;
+					}
+					else {
+						joinTimerText.visible = false;
+					}
+					joinTimerText.text = msToTime( roundTime - roundTimePassed );
+					if( roundTimePassed >= roundTime ) {
+						gamePhase = "hide";
+						roundTimePassed = 0;
+						showJoin( false );
+						showMenu( true );
+						showGame( false );
+						showSacrifice( false );
+						showEndgame( false );
+					}
+				}
+				break;
+			case "hide":
+				roundTimePassed += delta;
+				if( roundTimeText ) {
+					roundTimeText.text = msToTime( roundTime - roundTimePassed );
+					if( roundTimePassed >= roundTime ) {
+						// Anyone that hasn't joined will be dead
+						Object.keys( players ).forEach( p => {
+							if( players[ p ].team < 0 && players[ p ].alive ) {
+								players[ p ].alive = false;
+								readyPuppies[ p ].puppy.visible = false;
+							}
+						});
+
+						gamePhase = "sacrifice";
+						roundTimePassed = 0;
+						showJoin( false );
+						showMenu( false );
+						showGame( true );
+						showSacrifice( true );
+						playSacrificeSequence();
+						showEndgame( false );
+					}
+				}
+				break;
+			case "sacrifice":
+				if( isPlayingSacrificeSequence ) {
+					break;
+				}
+				if( Object.keys( explodedPuppies ).length == 0 ) {
+					Object.keys( players ).forEach( p => {
+						players[ p ].team = -1;
+						if( players[ p ].alive ) {
+							readyPuppies[ p ].puppy.visible = true;
+						}
+					} );
+					let puppiesRemaining = Object.keys( players ).filter( p => players[ p ].alive ).length > 0;
+					if( puppiesRemaining ) {
+						gamePhase = "hide";
+						showJoin( false );
+						showMenu( true );
+						showGame( false );
+						showSacrifice( false );
+						showEndgame( false );
+					}
+					else {
+						gamePhase = "annihilated";
+						showJoin( false );
+						showMenu( false );
+						showGame( false );
+						showSacrifice( false );
+						showEndgame( true );
+						createCatpocalypseEnd();
+					}
+				}
+				break;
+			}
+
+			labels.forEach( x => {
+				if( x.body.gameObject ) {
+					x.label.x = x.body.position.x;
+					x.label.y = x.body.position.y - x.body.gameObject.height * 0.75;
+					x.label.visible = x.body.gameObject.visible;
+				}
+				else {
+					x.label.visible = false;
+					// TODO: Destroy the label
+				}
+			});
+		}
+
+		function createMenu() {
+			// Setup the menu
+			gameTitle = phaser.add.text( width / 2, height / 2 + 200, "Doggo's Inferno", { fontFamily: 'Bubblegum Sans', fontSize: 164, fontStyle: "Bold", color: '#FFD222' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			joinTimerText = phaser.add.text( width / 2, height / 2 + 50, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			joinTimerText.visible = false;
+    		menuGroup = phaser.add.group();
+			boxes.push( menuGroup.create(boxX[ 0 ], boxY[ 0 ], 'box1') );
+			boxes.push( menuGroup.create(boxX[ 1 ], boxY[ 1 ], 'box2') );
+			boxes.push( menuGroup.create(boxX[ 2 ], boxY[ 2 ], 'box3') );
+			boxes.push( menuGroup.create(boxX[ 3 ], boxY[ 3 ], 'box4') );
+			boxesText.push( phaser.add.text( boxX[ 0 ], boxY[ 0 ] + 300, "!1", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 0.5 ).setStroke("#333333", 10) );
+			boxesText.push( phaser.add.text( boxX[ 1 ], boxY[ 1 ] + 300, "!2", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FFD222' } ).setOrigin( 0.5 ).setStroke("#333333", 10) );
+			boxesText.push( phaser.add.text( boxX[ 2 ], boxY[ 2 ] + 300, "!3", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#2DD765' } ).setOrigin( 0.5 ).setStroke("#333333", 10) );
+			boxesText.push( phaser.add.text( boxX[ 3 ], boxY[ 3 ] + 300, "!4", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 ).setStroke("#333333", 10) );
+			roundTimeText = phaser.add.text( 950, 100, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			joinText = phaser.add.text( 950, 100, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			return menuGroup;
+		}
+
+		function createSacrifice() {
+			cat1 = phaser.add.image( 1400, 700, "cat1" );
+			cat2 = phaser.add.image( 1400, 700, "cat2" );
+			catText = phaser.add.text( 1150, 700, "", { fontFamily: 'Gloria Hallelujah', fontSize: 40, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 1, 0.5 ).setStroke("#333333", 10);
+			cat2.visible = false;
+		}
+
+		function createPuppyEnd() {
+			puppyEndText = phaser.add.text( 960, 300, "THE PUPPIES SURVIVE", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			// List of survived puppies
+			var survived = Object.keys( players ).filter( p => players[ p ].alive );
+			console.log( "Survived Players:", survived );
+			puppySurvivors = phaser.add.text( 500, 400, survived.join( "\n" ), { fontFamily: 'Bubblegum Sans', fontSize: 40, fontStyle: "Bold", color: '#ffffff' } ).setStroke("#333333", 10);
+			return puppyEndText;
+		}
+
+		function createCatpocalypseEnd() {
+			catEndText = phaser.add.text( 960, 300, "CAPTAIN OF CATASTROPHE HAS CONQUERED", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			return catEndText;
+		}
+
+		function createGameObjects() {
+			// var numPillars = 6;
+			// for( var i = 0; i < numPillars; i++ ) {
+			// 	for( var j = 0; j < 4; j++ ) {
+			// 		var brick = phaser.matter.add.image( 160 + i * 300, height - 200 - j * 80, "pillar" );
+			// 		brick.setFriction(1);
+			// 		// brick.setFrictionAir(0.0005);
+			// 		// brick.setBounce(0.0);
+			// 		bricks.push( brick );
+			// 		pillars[ brick.body.id ] = {
+			// 			id: brick.body.id,
+			// 			brick: brick,
+			// 			health: 100,
+			// 			currentVotes: 0,
+			// 			index: i,
+			// 			damagePerPercentageVotes: 0
+			// 		};
+			// 	}
+			// 	// var puppy = phaser.matter.add.image( 160 + i * 300, height - 657, "puppy" );
+			// 	// puppy.setFriction(0.9);
+			// 	// // brick.setFrictionAir(0.0005);
+			// 	// // brick.setBounce(0.9);
+			// 	// attachLabel( puppy.body, "TEST PUPPY " + i );
+			// }
+
+			var particleOptions = { 
+				friction: 0.05,
+				frictionStatic: 0.1,
+				render: { visible: true } 
+			};
+			// var softBody = phaser.matter.add.softBody(250, 100, 5, 5, 0, 0, true, 18, particleOptions);
+			// var block = phaser.matter.add.image(150, 0, 'lava');
+			// block.setExistingBody(softBody);
+
+			let ground = phaser.matter.add.rectangle(width / 2, height - 150, width, 20, {
+				isStatic: true
+			});
+
+			for( var i = 0; i * 300 < width; i++ ) {
+				var lavaSegment = phaser.add.image( 100 + i * 300, height - 200, "lava" );
+				lava.push( lavaSegment );
+			}
+
+			phaser.matter.world.on('collisionactive', function(event, bodyA, bodyB) {
+				//  Loop through all of the collision pairs
+				var pairs = event.pairs;
+
+				for (var i = 0; i < pairs.length; i++)
+				{
+					var bodyA = pairs[i].bodyA;
+					var bodyB = pairs[i].bodyB;
+					if( bodyA == ground || bodyB == ground )
+					{
+						// console.log( "COLLIDING WITH GROUND" );
+						if( bodyA == ground ) {
+							// console.log( bodyB );
+						}
+						else {
+							// console.log( bodyA );
+						}
+					}
+				}
+			});
+		}
+
+		function showJoin( shouldShow ) {
+			joinText.visible = shouldShow;
+			gameTitle.visible = shouldShow;
+			joinTimerText.visible = shouldShow;
+		}
+
+		function showMenu( shouldShow ) {
+			// menuGroup.children.entries.forEach( x => x.visible = shouldShow );
+			boxesText.forEach( x => x.visible = shouldShow );
+			roundTimeText.visible = shouldShow;
+		}
+
+		function showGame( shouldShow ) {
+			bricks.forEach( x => x.visible = shouldShow );
+			lava.forEach( x => x.visible = shouldShow );
+		}
+
+		function showSacrifice( shouldShow ) {
+			cat1.visible = shouldShow;
+			cat2.visible = false;
+			catText.visible = shouldShow;
+		}
+
+		function showEndgame( shouldShow ) {
+			menuGroup.children.entries.forEach( x => x.visible = !shouldShow );
+			if( shouldShow ) {
+				if( refreshTimer ) {
+					clearTimeout( refreshTimer );
+				}
+				refreshTimer = setTimeout(() => {
+					location.reload();
+				}, 20000);
+			}
+		}
+
+		function moveCat( x, y ) {
+			cat1.x = x;
+			cat1.y = y;
+			cat2.x = x;
+			cat2.y = y;
+			catText.x = x - 250;
+			catText.y = y;
+		}
+
+		function openBox( index ) {
+			var teamMembers = Object.keys( players ).filter( p => players[ p ].team == index );
+			if( teamMembers.length > 0 ) {
+				explodedPuppies = {};
+				teamMembers.forEach( p => {
+					var dir = Math.PI / 180 * getRandomInt( 180 );
+					let puppy = addPuppy( boxX[ index ] + 5 * Math.cos( dir ), boxY[ index ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+					console.log( puppy );
+					players[ p ].alive = false;
+					explodedPuppies[ p ] = puppy;
+					setTimeout( () => {
+						puppy.destroy();
+						delete explodedPuppies[ p ];
+					}, 5000 );
+					var deathSound = phaser.sound.add('pupdeath', { loop: false, volume: 0.75 });
+					deathSound.play();
+				});
+				explode( boxX[ index ], boxY[ index ], 150, 50, 100 );
+			}
+			else {
+				gamePhase = "survived";
+				showJoin( false );
+				showMenu( false );
+				showGame( false );
+				showSacrifice( false );
+				showEndgame( true );
+				createPuppyEnd();
+			}
+		}
+
+		function playSacrificeSequence() {
+			isPlayingSacrificeSequence = true;
+			moveCat( 1400, 700 );
+
+			// "The cat's out of the bag now."
+			// "Beep boop beep boop, you thought I was a robot but HA! You were wrong I'm the captain of catastrophe!"
+			// "The puppy doesn't fall far from the tree now does it!"
+			// "Rumble rumble let the puppies tumble"
+			// "A puppy walks into a bar... The floor is lava HA HA HA"
+			// "What did the dog say to the tree? Bark."
+			// "Pick wisely or it's going to be RUFF"
+			// "You're a watchdog you say? WELL WATCH THIS!"
+			// "You may have heard they did surgery on a grape but have to heard about DEATH?"
+			// "Trying to touch my catnip? How dare you!"
+
+			catSound = phaser.sound.add('catastrophe', { loop: false, volume: 0.75 });
+			catSound.play();
+			let isMouthPaused = true;
+			var mouthMove = setInterval(() => {
+				if( !isMouthPaused ) {
+					cat1.visible = cat2.visible;
+					cat2.visible = !cat1.visible;
+				}
+			}, 200);
+			setTimeout( () => {
+				isMouthPaused = false;
+				catText.text = "BOW WOW CHOW";
+				setTimeout( () => {
+					catText.text = "I am the Captain of Catastrophe!!";
+					moveCat( boxX[ 2 ] + 30, boxY[ 2 ] - 220 );
+					setTimeout( () => {
+						catText.text = "FEEL MY WRATH";
+						moveCat( boxX[ 1 ] + 30, boxY[ 1 ] - 220 );
+						setTimeout( () => {
+							catText.text = "who shall live and who shall die";
+							moveCat( boxX[ 3 ] + 30, boxY[ 3 ] - 220 );
+							setTimeout(() => {
+								clearInterval( mouthMove );
+								cat1.visible = true;
+								cat2.visible = false;
+							}, 2000);
+							setTimeout(() => {
+								catText.text = "";
+								var finalBox = getRandomInt( boxX.length );
+								moveCat( boxX[ finalBox ] + 30, boxY[ finalBox ] - 220 );
+								setTimeout(() => {
+									isPlayingSacrificeSequence = false;
+									openBox( finalBox );
+								}, 1000);
+							}, 2700);
+						}, 1400);
+					}, 2100);
+				}, 1500);
+			}, 300);
+		}
+
+		function startGame() {
+			var ambience = phaser.sound.add('lavaambience', { loop: true, volume: 0.75 });
+			ambience.play();
+			gamePhase = "join";
+			createGameObjects();
+			createMenu();
+			createSacrifice();
+			showJoin( true );
+			showMenu( false );
+			showGame( false );
+			showSacrifice( false );
+			// showGame( true );
+			// showSacrifice( true );
+			// playSacrificeSequence();
+			showEndgame( false );
+		}
+
+		function attachLabel( body, text, color = "#ffffff" ) {
+			var labelText = phaser.add.text(body.position.x, body.position.y - body.gameObject.height, text, { fontFamily: 'Bubblegum Sans', fontSize: 50, fontStyle: "Bold", color: color } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			labels.push( {
+				label: labelText,
+				body: body
+			});
+			return labelText;
+		}
+
+		function explode( x, y, radius, minSpeed, maxSpeed ) {
+			console.log( "EXPLODE:", x, y );
+			var r2 = radius * radius;
+			var bodies = phaser.matter.world.localWorld.bodies.filter( b => ( b.position.x - x ) * ( b.position.y - y ) + ( b.position.y - y ) < r2 );
+			bodies.forEach( b => {
+				var dx = b.position.x - x;
+				var dy = b.position.y - y;
+				var length = Math.sqrt( dx * dx + dy * dy );
+				var speed = minSpeed + getRandomInt( maxSpeed - minSpeed );
+				b.force.x = dx / length * speed / 100;
+				b.force.y = dy / length * speed / 100;
+			});
+		}
+
+		function addPuppy( x, y, name, color ) {
+			var puppy = phaser.matter.add.image( x, y, players[ name ].breed );
+			puppy.setFriction(0.9);
+			// puppy.setFrictionAir(0.0005);
+			puppy.setBounce(0.9);
+			attachLabel( puppy.body, name, color );
+			return puppy;
+		}
+
+		function msToTime(duration) {
+			var milliseconds = parseInt((duration%1000)/100)
+				, seconds = parseInt((duration/1000)%60)
+				, minutes = parseInt((duration/(1000*60))%60)
+				, hours = parseInt((duration/(1000*60*60))%24);
+
+			hours = (hours < 10) ? "0" + hours : hours;
+			minutes = (minutes < 10) ? "0" + minutes : minutes;
+			seconds = (seconds < 10) ? "0" + seconds : seconds;
+
+			// return hours + ":" + minutes + ":" + seconds + "." + milliseconds;
+			return minutes + ":" + seconds + "." + milliseconds;
+		}
+
+		function getRandomInt(max) {
+		  return Math.floor(Math.random() * Math.floor(max));
+		}
+
+		var client = null;
+
+		$( document ).ready(function() {
+			var options = {
+				options: {
+					debug: false
+				},
+				connection: {
+					reconnect: true,
+				},
+				channels: ["#" + params.get( "channel" )]
+			};
+
+			client = new tmi.client(options);
+
+			// Connect the client to the server..
+			client.connect();
+
+			client.on("chat", function (channel, userstate, message, self) {
+				var isStreamer = channel == "#" + userstate[ "username" ];
+				var username = userstate[ "display-name" ];
+				var color = userstate[ "color" ];
+				var message = message.toLowerCase();
+				switch( gamePhase ) {
+				case "join":
+					if( isStreamer ) {
+						if( message.startsWith( "!letitdoggo" ) ) {
+							gamePhase = "hide";
+							roundTimePassed = 0;
+							showJoin( false );
+							showMenu( true );
+							showGame( false );
+							showSacrifice( false );
+							showEndgame( false );
+						}
+					}
+					if( message.startsWith( "!doggo" ) && !players[ username ] ) {
+						players[ username ] = {
+							username: username,
+							alive: true,
+							team: -1,
+							breed: puppyimages[ getRandomInt( puppyimages.length ) ],
+							color: color
+						};
+						console.log( username + " has joined!" );
+						var bark = phaser.sound.add('pup' + getRandomInt( 4 ), { loop: false, volume: 0.75 });
+						bark.play();
+
+						if( !readyPuppies[ username ] ) {
+							var puppy = phaser.matter.add.image( getRandomInt( width ), 0, players[ username ].breed );
+							puppy.setCircle();
+							puppy.setFriction(0.9);
+							// puppy.setFrictionAir(0.0005);
+							puppy.setBounce(0.9);
+							puppy.setVelocity( 0, 20 );
+							var label = attachLabel( puppy.body, userstate[ "display-name" ], color );
+							readyPuppies[ username ] = {
+								username: username,
+								puppy: puppy,
+								label: label
+							}
+						}
+					}
+					break;
+				case "hide":
+					if( isStreamer ) {
+						if( message == "!ready" ) {
+							// Anyone that hasn't joined will be dead
+							Object.keys( players ).forEach( p => {
+								if( players[ p ].team < 0 && players[ p ].alive ) {
+									players[ p ].alive = false;
+									readyPuppies[ p ].puppy.visible = false;
+								}
+							});
+
+							gamePhase = "sacrifice";
+							roundTimePassed = 0;
+							showJoin( false );
+							showMenu( false );
+							showGame( true );
+							showSacrifice( true );
+							playSacrificeSequence();
+							showEndgame( false );
+						}
+					}
+					switch( message.split( " " )[ 0 ] ) {
+					case "!1":
+						if( players[ username ] && players[ username ].alive ) {
+							players[ username ].team = 0;
+							readyPuppies[ username ].puppy.visible = false;
+						}
+						break;
+					case "!2":
+						if( players[ username ] && players[ username ].alive ) {
+							players[ username ].team = 1;
+							readyPuppies[ username ].puppy.visible = false;
+						}
+						break;
+					case "!3":
+						if( players[ username ] && players[ username ].alive ) {
+							players[ username ].team = 2;
+							readyPuppies[ username ].puppy.visible = false;
+						}
+						break;
+					case "!4":
+						if( players[ username ] && players[ username ].alive ) {
+							players[ username ].team = 3;
+							readyPuppies[ username ].puppy.visible = false;
+						}
+						break;
+					}
+					if( Object.keys( readyPuppies ).filter( p => players[ p ].alive && readyPuppies[ p ].puppy.visible ).length == 0 ) {
+						gamePhase = "sacrifice";
+						roundTimePassed = 0;
+						showJoin( false );
+						showMenu( false );
+						showGame( true );
+						showSacrifice( true );
+						playSacrificeSequence();
+						showEndgame( false );
+					}
+					break;
+				case "sacrifice":
+					break;
+				}
+
+				if( message == "!explode" ) {
+					explode( getRandomInt( width ), height - 100, 100, 50, 100 );
+				}
+			});
+		});
+	</script>
+  </body>
+</html>
