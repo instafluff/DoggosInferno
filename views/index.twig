@@ -5,12 +5,13 @@
 	<script>
 		var width = 1920;
 		var height = 1080;
+		const params = new URLSearchParams(location.search);
 
 		var config = {
 			type: Phaser.AUTO,
 			width: width, //1920
 			height: height, //1080
-    		transparent: true, 
+    		transparent: params.get( "overlay" ), 
 			parent: 'doggosinferno',
 			physics: {
 				default: 'matter',
@@ -53,8 +54,9 @@
 		var gamePhase = "join"; // "join", "hide", "sacrifice", "survived", "annihilated"
 		var streamerLives = 1;
 		var roundTimePassed = 0;
-		var roundTime = 60000;
+		var roundTime = 45000;
 		var joinText = undefined;
+		var joinTimerText = undefined;
 		var roundTimeText = undefined;
 		var boxX = [ 350, 750, 1150, 1550 ];
 		var boxY = [ 350, 350, 350, 350 ];
@@ -127,7 +129,33 @@
 			switch( gamePhase ) {
 			case "join":
 				if( joinText ) {
-					joinText.text = "Type !doggo to join";
+					if( params.get( "channel" ) ) {
+						joinText.text = "Type !doggo to join";
+					}
+					else {
+						joinText.text = "Please specify a Twitch channel in the URL";
+						joinText.setColor( "#ff0000" );
+						joinText.setFontSize( 64 );
+					}
+				}
+				if( joinTimerText ) {
+					if( Object.keys( players ).length > 0 ) {
+						roundTimePassed += delta;
+						joinTimerText.visible = true;
+					}
+					else {
+						joinTimerText.visible = false;
+					}
+					joinTimerText.text = msToTime( roundTime - roundTimePassed );
+					if( roundTimePassed >= roundTime ) {
+						gamePhase = "hide";
+						roundTimePassed = 0;
+						showJoin( false );
+						showMenu( true );
+						showGame( false );
+						showSacrifice( false );
+						showEndgame( false );
+					}
 				}
 				break;
 			case "hide":
@@ -203,6 +231,8 @@
 		function createMenu() {
 			// Setup the menu
 			gameTitle = phaser.add.text( width / 2, height / 2 + 200, "Doggo's Inferno", { fontFamily: 'Bubblegum Sans', fontSize: 164, fontStyle: "Bold", color: '#FFD222' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			joinTimerText = phaser.add.text( width / 2, height / 2 + 50, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			joinTimerText.visible = false;
     		menuGroup = phaser.add.group();
 			boxes.push( menuGroup.create(boxX[ 0 ], boxY[ 0 ], 'box1') );
 			boxes.push( menuGroup.create(boxX[ 1 ], boxY[ 1 ], 'box2') );
@@ -306,6 +336,7 @@
 		function showJoin( shouldShow ) {
 			joinText.visible = shouldShow;
 			gameTitle.visible = shouldShow;
+			joinTimerText.visible = shouldShow;
 		}
 
 		function showMenu( shouldShow ) {
@@ -360,7 +391,7 @@
 						puppy.destroy();
 						delete explodedPuppies[ p ];
 					}, 5000 );
-					var deathSound = phaser.sound.add('pupdeath', { loop: false });
+					var deathSound = phaser.sound.add('pupdeath', { loop: false, volume: 0.75 });
 					deathSound.play();
 				});
 				explode( boxX[ index ], boxY[ index ], 150, 50, 100 );
@@ -391,7 +422,7 @@
 			// "You may have heard they did surgery on a grape but have to heard about DEATH?"
 			// "Trying to touch my catnip? How dare you!"
 
-			catSound = phaser.sound.add('catastrophe', { loop: false });
+			catSound = phaser.sound.add('catastrophe', { loop: false, volume: 0.75 });
 			catSound.play();
 			let isMouthPaused = true;
 			var mouthMove = setInterval(() => {
@@ -433,7 +464,7 @@
 		}
 
 		function startGame() {
-			var ambience = phaser.sound.add('lavaambience', { loop: true });
+			var ambience = phaser.sound.add('lavaambience', { loop: true, volume: 0.75 });
 			ambience.play();
 			gamePhase = "join";
 			createGameObjects();
@@ -502,8 +533,6 @@
 		var client = null;
 
 		$( document ).ready(function() {
-			// $("#fluffinko").hide();
-
 			var options = {
 				options: {
 					debug: false
@@ -511,11 +540,7 @@
 				connection: {
 					reconnect: true,
 				},
-				identity: {
-					username: "{{ username }}",
-				    password: "{{ oauth }}"
-				},
-				channels: ["#{{ username }}"]
+				channels: ["#" + params.get( "channel" )]
 			};
 
 			client = new tmi.client(options);
@@ -550,7 +575,7 @@
 							color: color
 						};
 						console.log( username + " has joined!" );
-						var bark = phaser.sound.add('pup' + getRandomInt( 4 ), { loop: false });
+						var bark = phaser.sound.add('pup' + getRandomInt( 4 ), { loop: false, volume: 0.75 });
 						bark.play();
 
 						if( !readyPuppies[ username ] ) {

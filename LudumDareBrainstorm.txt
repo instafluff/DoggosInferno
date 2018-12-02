@@ -1,5 +1,6 @@
 -- A FLUFFY LUDUM DARE 43 IDEARS --
 
+- Different things for Captain of Catastrophe to say
 - Move the puppy to the boxes to hide behind
 
 
