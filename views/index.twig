@@ -5,6 +5,7 @@
 	<script>
 		var width = 1920;
 		var height = 1080;
+
 		var config = {
 			type: Phaser.AUTO,
 			width: width, //1920
@@ -36,6 +37,13 @@
 		var floor = null;
 		var labels = [];
 		var players = {};
+		var teams = {};
+		var menuGroup = undefined;
+		var boxes = [];
+		var boxesText = [];
+		var round = 0;
+		var maxRound = 7;
+		var gamePhase = "hide"; // "hide", "reveal", "sacrifice"
 
 		//Individual Blocks within a Pillar
 		var PillarBlock = {
@@ -50,11 +58,16 @@
 
 		function preload ()
 		{
+			this.load.image('box1', 'images/box1.png');
+			this.load.image('box2', 'images/box2.png');
+			this.load.image('box3', 'images/box3.png');
+			this.load.image('box4', 'images/box4.png');
 			this.load.image('lava', 'images/lavablock.png');
 			this.load.image('pillar', 'images/pillar_middle.png');
 			this.load.image('smoke_cloud', 'images/smoke.png');
 			this.load.image('hammer', 'images/hammer.png');
 			this.load.image('puppy', 'images/Pupachu.png');
+			this.load.script('webfont', 'https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js');
 		}
 
 		function create()
@@ -64,10 +77,24 @@
 			this.game.clearBeforeRender = true;
 			this.matter.world.setBounds();
 			this.matter.add.mouseSpring();
-			startGame();
+			WebFont.load({
+				google: {
+					families: [ 'Bubblegum Sans' ]
+				},
+				active: function ()
+				{
+					startGame();
+				}
+			});
 		}
 
 		function update() {
+			// switch( gamePhase ) {
+			// case "hide":
+				
+			// 	break;
+			// }
+
 			labels.forEach( x => {
 				// console.log( x.body.position.y );
 				x.label.x = x.body.position.x;
@@ -75,7 +102,26 @@
 			});
 		}
 
-		function startGame() {
+		function createMenu() {
+			// Setup the menu
+    		menuGroup = phaser.add.group();
+			boxes.push( menuGroup.create(750, 350, 'box1') );
+			boxes.push( menuGroup.create(1150, 350, 'box2') );
+			boxes.push( menuGroup.create(750, 750, 'box3') );
+			boxes.push( menuGroup.create(1150, 750, 'box4') );
+			boxesText.push( phaser.add.text( 450, 350, "!1", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 0.5 ) );
+			boxesText.push( phaser.add.text( 1450, 350, "!2", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FFD222' } ).setOrigin( 0.5 ) );
+			boxesText.push( phaser.add.text( 450, 750, "!3", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#2DD765' } ).setOrigin( 0.5 ) );
+			boxesText.push( phaser.add.text( 1450, 750, "!4", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 ) );
+			return menuGroup;
+		}
+
+		function showMenu( shouldShow ) {
+			menuGroup.children.entries.forEach( x => x.visible = shouldShow );
+			boxesText.forEach( x => x.visible = shouldShow );
+		}
+
+		function createGameObjects() {
 			var numPillars = 6;
 			for( var i = 0; i < numPillars; i++ ) {
 				for( var j = 0; j < 4; j++ ) {
@@ -153,10 +199,15 @@
 			});
 		}
 
+		function startGame() {
+			gamePhase = "hide";
+			createGameObjects();
+			createMenu();
+			showMenu( false );
+		}
+
 		function attachLabel( body, text ) {
-			var labelText = phaser.add.text(body.position.x, body.position.y - body.gameObject.height, text);
-			labelText.setScale( 2.5 );
-			labelText.setOrigin( 0.5 );
+			var labelText = phaser.add.text(body.position.x, body.position.y - body.gameObject.height, text, { fontFamily: 'Bubblegum Sans', fontSize: 64, fontStyle: "Bold", color: '#FFFFFF' } ).setOrigin( 0.5 );
 			labels.push( {
 				label: labelText,
 				body: body
@@ -175,6 +226,15 @@
 				b.force.x = dx / length * speed / 100;
 				b.force.y = dy / length * speed / 100;
 			});
+		}
+
+		function addPuppy( x, y, name ) {
+			var puppy = phaser.matter.add.image( x, y, "puppy" );
+			puppy.setFriction(0.9);
+			// puppy.setFrictionAir(0.0005);
+			puppy.setBounce(0.9);
+			attachLabel( puppy.body, name );
+			return puppy;
 		}
 
 		function getRandomInt(max) {
@@ -206,35 +266,125 @@
 			client.connect();
 
 			client.on("chat", function (channel, userstate, message, self) {
+				var isStreamer = channel == "#" + userstate[ "username" ];
+				var username = userstate[ "display-name" ];
+				switch( gamePhase ) {
+				case "hide":
+					if( !isStreamer ) {
+						switch( message.split( " " )[ 0 ] ) {
+						case "!1":
+							if( !players[ username ] ) {
+								players[ username ] = {
+									username: username,
+									team: 0
+								}
+								if( !teams[ 0 ] ) {
+									teams[ 0 ] = [];
+								}
+								teams[ 0 ].push( username );
+							}
+							break;
+						case "!2":
+							if( !players[ username ] ) {
+								players[ username ] = {
+									username: username,
+									team: 1
+								}
+								if( !teams[ 1 ] ) {
+									teams[ 1 ] = [];
+								}
+								teams[ 1 ].push( username );
+							}
+							break;
+						case "!3":
+							if( !players[ username ] ) {
+								players[ username ] = {
+									username: username,
+									team: 2
+								}
+								if( !teams[ 2 ] ) {
+									teams[ 2 ] = [];
+								}
+								teams[ 2 ].push( username );
+							}
+							break;
+						case "!4":
+							if( !players[ username ] ) {
+								players[ username ] = {
+									username: username,
+									team: 3
+								}
+								if( !teams[ 3 ] ) {
+									teams[ 3 ] = [];
+								}
+								teams[ 3 ].push( username );
+							}
+							break;
+						}
+					}
+					break;
+				case "reveal":
+					if( !isStreamer ) {
+						switch( message.split( " " )[ 0 ] ) {
+						case "!1":
+							if( teams[ 0 ] ) {
+								teams[ 0 ].forEach( p => {
+									var dir = Math.PI / getRandomInt( 180 );
+									addPuppy( 750 + 5 * Math.cos( dir ), 350 - Math.abs( 5 * Math.sin( dir ) ), p );
+								});
+								explode( 750, 350, 150, 50, 100 );
+							}
+							break;
+						case "!2":
+							if( teams[ 1 ] ) {
+								teams[ 1 ].forEach( p => {
+									var dir = Math.PI / getRandomInt( 180 );
+									addPuppy( 1150 + 5 * Math.cos( dir ), 350 - Math.abs( 5 * Math.sin( dir ) ), p );
+								});
+								explode( 1150, 350, 150, 50, 100 );
+							}
+							break;
+						case "!3":
+							if( teams[ 2 ] ) {
+								teams[ 2 ].forEach( p => {
+									var dir = Math.PI / getRandomInt( 180 );
+									addPuppy( 750 + 5 * Math.cos( dir ), 750 - Math.abs( 5 * Math.sin( dir ) ), p );
+								});
+								explode( 750, 750, 150, 50, 100 );
+							}
+							break;
+						case "!4":
+							if( teams[ 3 ] ) {
+								teams[ 3 ].forEach( p => {
+									var dir = Math.PI / getRandomInt( 180 );
+									addPuppy( 1150 + 5 * Math.cos( dir ), 750 - Math.abs( 5 * Math.sin( dir ) ), p );
+								});
+								explode( 1150, 750, 150, 50, 100 );
+							}
+							break;
+						}
+					}
+					break;
+				}
+
 				if( message == "!explode" ) {
-					explode( getRandomInt( width ), height - 100, 500, 50, 100 );
+					explode( getRandomInt( width ), height - 100, 100, 50, 100 );
 				}
 				if( message == "!doggo" ) {
 					var username = userstate[ "display-name" ];
 					if( !players[ username ] ) {
 						var puppy = phaser.matter.add.image( getRandomInt( width ), 0, "puppy" );
-							puppy.setFriction(0.9);
-							// brick.setFrictionAir(0.0005);
-							puppy.setBounce(0.9);
-							puppy.setVelocity( 0, 20 );
-							attachLabel( puppy.body, userstate[ "display-name" ] );
+						puppy.setFriction(0.9);
+						// puppy.setFrictionAir(0.0005);
+						puppy.setBounce(0.9);
+						puppy.setVelocity( 0, 20 );
+						attachLabel( puppy.body, userstate[ "display-name" ] );
 						players[ username ] = {
 							username: username,
 							puppy: puppy
 						}
 					}
 				}
-				// if( message == "!boingboing" ) {
-				// 	addUser( userstate["display-name"] );
-
-				// 	// $("#fluffinko").show();
-				// 	// if( refreshTimer ) {
-				// 	// 	clearTimeout( refreshTimer );
-				// 	// }
-				// 	// refreshTimer = setTimeout(() => {
-				// 	// 	location.reload();
-				// 	// }, 90000);
-				// }
 			});
 		});
 	</script>
