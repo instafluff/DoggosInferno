@@ -9,6 +9,24 @@ Puppy Royale
 Battle of the Puppies
 Don't Kill The Puppy
 Puppy Blaze
+The Pupper Games: May the Dogs Be Ever in your Favor™
+
+
+
+7 rounds of Prisoner's Dilemma mini-games
+- Gain # dog treats each round as score
+- Lose participants each round or lose the game
+- Give up one of your blocks to remove one from all other players?
+
+
+3. Greed: participants are split into two teams. Each can grab from the pile of dog treats, but only the group with fewer treats moves on
+
+
+
+
+
+
+
 
 6 pillars, each with a randomly-assigned puppy with a hidden chatter name
 Each round, viewers can select a pillar to hammer tap(?) to weaken or crumble the pillar (or remove blocks) via Twitch Extension

@@ -3,17 +3,22 @@
 {% block body %}
 	<div id="doggosinferno"></div>
 	<script>
+		var width = 1920;
+		var height = 1080;
 		var config = {
 			type: Phaser.AUTO,
-			width: 960, //1920
-			height: 540, //1080
-    	transparent: true, 
+			width: width, //1920
+			height: height, //1080
+    		// transparent: true, 
 			parent: 'doggosinferno',
 			physics: {
-				default: 'arcade',
-				arcade: {
+				default: 'matter',
+				matter: {
+					gravity: {
+						y: 1.5
+					},
 					// debug: true,
-					gravity: { y: 200 }
+					debugBodyColor: 0xff00ff
 				}
 			},
 			scene: {
@@ -26,35 +31,150 @@
 		var game = new Phaser.Game(config);
 		var phaser = undefined;
 		var refreshTimer = null;
-		var pillars = [];
+		var pillars = {};
+		var bricks = [];
+		var floor = null;
+		var labels = [];
+		var players = {};
+
+		//Individual Blocks within a Pillar
+		var PillarBlock = {
+			blockHP: 100
+		};
+
+		//Each pillar consisting of an array of PillarBlock objects
+		var Pillar = {
+			playerName: "",
+			pillarBlocks: []
+		};
 
 		function preload ()
 		{
-			this.load.image('lava', 'images/lava.png');
-			this.load.image('pillar_bottom', 'images/pillar_bottom.png');
-			this.load.image('pillar_normal', 'images/pillar_normal.png');
-			this.load.image('smoke_cloud', 'images/smoke_cloud.png');
-			this.load.image('broken_left', 'images/pillar_brokenl.png');
-			this.load.image('broken_right', 'images/pillar_brokenr.png');
+			this.load.image('lava', 'images/lavablock.png');
+			this.load.image('pillar', 'images/pillar_middle.png');
+			this.load.image('smoke_cloud', 'images/smoke.png');
 			this.load.image('hammer', 'images/hammer.png');
+			this.load.image('puppy', 'images/Pupachu.png');
 		}
 
-		function create ()
+		function create()
 		{
 			phaser = this;
 			this.game.antialias = true;
 			this.game.clearBeforeRender = true;
+			this.matter.world.setBounds();
+			this.matter.add.mouseSpring();
 			startGame();
 		}
 
 		function update() {
+			labels.forEach( x => {
+				// console.log( x.body.position.y );
+				x.label.x = x.body.position.x;
+				x.label.y = x.body.position.y - x.body.gameObject.height * 0.75;
+			});
 		}
 
 		function startGame() {
-			phaser.physics.add.staticImage( 150, 420, "lava" );
-			phaser.physics.add.staticImage( 150, 400, "pillar_bottom" );
-			phaser.physics.add.staticImage( 150, 340, "pillar_normal" );
-			phaser.physics.add.staticImage( 150, 280, "pillar_normal" );
+			var numPillars = 6;
+			for( var i = 0; i < numPillars; i++ ) {
+				for( var j = 0; j < 4; j++ ) {
+					var brick = phaser.matter.add.image( 160 + i * 300, height - 200 - j * 80, "pillar" );
+					brick.setFriction(1);
+					// brick.setFrictionAir(0.0005);
+					// brick.setBounce(0.0);
+					bricks.push( brick );
+					pillars[ brick.body.id ] = {
+						id: brick.body.id,
+						brick: brick,
+						health: 100,
+						currentVotes: 0,
+						index: i,
+						damagePerPercentageVotes: 0
+					};
+				}
+				// var puppy = phaser.matter.add.image( 160 + i * 300, height - 657, "puppy" );
+				// puppy.setFriction(0.9);
+				// // brick.setFrictionAir(0.0005);
+				// // brick.setBounce(0.9);
+				// attachLabel( puppy.body, "TEST PUPPY " + i );
+			}
+
+			var particleOptions = { 
+				friction: 0.05,
+				frictionStatic: 0.1,
+				render: { visible: true } 
+			};
+			// var softBody = phaser.matter.add.softBody(250, 100, 5, 5, 0, 0, true, 18, particleOptions);
+			// var block = phaser.matter.add.image(150, 0, 'lava');
+			// block.setExistingBody(softBody);
+
+			let ground = phaser.matter.add.rectangle(width / 2, height - 150, width, 20, {
+				isStatic: true
+			});
+
+			for( var i = 0; i * 300 < width; i++ ) {
+				phaser.add.image( 100 + i * 300, height - 200, "lava" );
+			}
+
+			phaser.matter.world.on('collisionactive', function(event, bodyA, bodyB) {
+				//  Loop through all of the collision pairs
+				var pairs = event.pairs;
+
+				for (var i = 0; i < pairs.length; i++)
+				{
+					var bodyA = pairs[i].bodyA;
+					var bodyB = pairs[i].bodyB;
+					if( bodyA == ground || bodyB == ground )
+					{
+						// console.log( "COLLIDING WITH GROUND" );
+						if( bodyA == ground ) {
+							// console.log( bodyB );
+							if( pillars[ bodyB.id ] ) {
+								pillars[ bodyB.id ].isTouchGround = true;
+								// pillars[ bodyB.id ].health -= 1;
+								// if( pillars[ bodyB.id ].health <= 0 ) {
+								// 	pillars[ bodyB.id ].brick.destroy();
+								// }
+							}
+						}
+						else {
+							// console.log( bodyA );
+							if( pillars[ bodyA.id ] ) {
+								pillars[ bodyA.id ].isTouchGround = true;
+								// pillars[ bodyA.id ].health -= 1;
+								// if( pillars[ bodyA.id ].health <= 0 ) {
+								// 	pillars[ bodyA.id ].brick.destroy();
+								// }
+							}
+						}
+					}
+				}
+			});
+		}
+
+		function attachLabel( body, text ) {
+			var labelText = phaser.add.text(body.position.x, body.position.y - body.gameObject.height, text);
+			labelText.setScale( 2.5 );
+			labelText.setOrigin( 0.5 );
+			labels.push( {
+				label: labelText,
+				body: body
+			});
+		}
+
+		function explode( x, y, radius, minSpeed, maxSpeed ) {
+			console.log( "EXPLODE:", x, y );
+			var r2 = radius * radius;
+			var bodies = phaser.matter.world.localWorld.bodies.filter( b => ( b.position.x - x ) * ( b.position.y - y ) + ( b.position.y - y ) < r2 );
+			bodies.forEach( b => {
+				var dx = b.position.x - x;
+				var dy = b.position.y - y;
+				var length = Math.sqrt( dx * dx + dy * dy );
+				var speed = minSpeed + getRandomInt( maxSpeed - minSpeed );
+				b.force.x = dx / length * speed / 100;
+				b.force.y = dy / length * speed / 100;
+			});
 		}
 
 		function getRandomInt(max) {
@@ -86,6 +206,24 @@
 			client.connect();
 
 			client.on("chat", function (channel, userstate, message, self) {
+				if( message == "!explode" ) {
+					explode( getRandomInt( width ), height - 100, 500, 50, 100 );
+				}
+				if( message == "!doggo" ) {
+					var username = userstate[ "display-name" ];
+					if( !players[ username ] ) {
+						var puppy = phaser.matter.add.image( getRandomInt( width ), 0, "puppy" );
+							puppy.setFriction(0.9);
+							// brick.setFrictionAir(0.0005);
+							puppy.setBounce(0.9);
+							puppy.setVelocity( 0, 20 );
+							attachLabel( puppy.body, userstate[ "display-name" ] );
+						players[ username ] = {
+							username: username,
+							puppy: puppy
+						}
+					}
+				}
 				// if( message == "!boingboing" ) {
 				// 	addUser( userstate["display-name"] );
 
