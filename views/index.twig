@@ -57,6 +57,7 @@
 		var puppySurvivors = undefined;
 		var catEndText = undefined;
 		var catText = undefined;
+		var catSound = undefined;
 		var cat1 = undefined, cat2 = undefined;
 
 		//Individual Blocks within a Pillar
@@ -86,6 +87,7 @@
 			this.load.image(puppyimages[ 0 ], 'images/doggo1.png');
 			this.load.image(puppyimages[ 1 ], 'images/doggo2.png');
 			this.load.image(puppyimages[ 2 ], 'images/doggo3.png');
+			this.load.audio('catastrophe', ['sounds/catastrophe.mp3']);
 			this.load.script('webfont', 'https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js');
 		}
 
@@ -125,6 +127,7 @@
 						showMenu( false );
 						showGame( true );
 						showSacrifice( true );
+						playSacrificeSequence();
 						showEndgame( false );
 					}
 				}
@@ -155,9 +158,9 @@
 		}
 
 		function createSacrifice() {
-			catText = phaser.add.text( 1150, 700, "I AM THE CAPTAIN OF CATASTROPHE!", { fontFamily: 'Gloria Hallelujah', fontSize: 40, fontStyle: "Bold", color: '#FFFFFF' } ).setOrigin( 1, 0.5 );
 			cat1 = phaser.add.image( 1400, 700, "cat1" );
 			cat2 = phaser.add.image( 1400, 700, "cat2" );
+			catText = phaser.add.text( 1150, 700, "", { fontFamily: 'Gloria Hallelujah', fontSize: 40, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 1, 0.5 );
 			cat2.visible = false;
 		}
 
@@ -280,17 +283,96 @@
 			menuGroup.children.entries.forEach( x => x.visible = !shouldShow );
 		}
 
+		function moveCat( x, y ) {
+			console.log( cat1 );
+			cat1.x = x;
+			cat1.y = y;
+			cat2.x = x;
+			cat2.y = y;
+			catText.x = x - 250;
+			catText.y = y;
+		}
+
+		function openBox( index ) {
+			var teamMembers = Object.keys( players ).filter( p => players[ p ].team == index );
+			if( teamMembers.length > 0 ) {
+				teamMembers.forEach( p => {
+					var dir = Math.PI / 180 * getRandomInt( 180 );
+					addPuppy( boxX[ 0 ] + 5 * Math.cos( dir ), boxY[ 0 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+					players[ p ].alive = false;
+				});
+				explode( boxX[ index ], boxY[ index ], 150, 50, 100 );
+				gamePhase = "hide";
+				showJoin( false );
+				showMenu( true );
+				showGame( false );
+				showSacrifice( false );
+				showEndgame( false );
+			}
+			else {
+				gamePhase = "survived";
+				showJoin( false );
+				showMenu( false );
+				showGame( false );
+				showSacrifice( false );
+				showEndgame( true );
+				createPuppyEnd();
+			}
+		}
+
+		function playSacrificeSequence() {
+			moveCat( 1400, 700 );
+
+			catSound = phaser.sound.add('catastrophe', { loop: false });
+			catSound.play();
+			let isMouthPaused = true;
+			var mouthMove = setInterval(() => {
+				if( !isMouthPaused ) {
+					cat1.visible = cat2.visible;
+					cat2.visible = !cat1.visible;
+				}
+			}, 200);
+			setTimeout( () => {
+				isMouthPaused = false;
+				catText.text = "BOW WOW CHOW";
+				setTimeout( () => {
+					catText.text = "I am the Captain of Catastrophe!!";
+					moveCat( boxX[ 2 ] + 30, boxY[ 2 ] - 220 );
+					setTimeout( () => {
+						catText.text = "FEEL MY WRATH";
+						moveCat( boxX[ 1 ] + 30, boxY[ 1 ] - 220 );
+						setTimeout( () => {
+							catText.text = "who shall live and who shall die";
+							moveCat( boxX[ 3 ] + 30, boxY[ 3 ] - 220 );
+							setTimeout(() => {
+								clearInterval( mouthMove );
+								cat1.visible = true;
+								cat2.visible = false;
+							}, 2000);
+							setTimeout(() => {
+								catText.text = "";
+								var finalBox = getRandomInt( boxX.length );
+								moveCat( boxX[ finalBox ] + 30, boxY[ finalBox ] - 220 );
+								openBox( finalBox );
+							}, 2700);
+						}, 1400);
+					}, 2100);
+				}, 1500);
+			}, 300);
+		}
+
 		function startGame() {
 			gamePhase = "join";
 			createGameObjects();
-			createSacrifice();
 			createMenu();
+			createSacrifice();
 			showJoin( true );
 			showMenu( false );
 			showGame( false );
 			showSacrifice( false );
 			// showGame( true );
 			// showSacrifice( true );
+			// playSacrificeSequence();
 			showEndgame( false );
 		}
 
@@ -347,6 +429,10 @@
 		var client = null;
 
 		$( document ).ready(function() {
+			setTimeout(() => {
+				voices = window.speechSynthesis.getVoices();
+				console.log( voices );
+			}, 2000 );
 			// $("#fluffinko").hide();
 
 			var options = {
@@ -419,6 +505,7 @@
 							showMenu( false );
 							showGame( true );
 							showSacrifice( true );
+							playSacrificeSequence();
 							showEndgame( false );
 						}
 					}
@@ -455,98 +542,99 @@
 						showMenu( false );
 						showGame( true );
 						showSacrifice( true );
+						playSacrificeSequence();
 						showEndgame( false );
 					}
 					break;
 				case "sacrifice":
-					if( isStreamer ) {
-						switch( message.split( " " )[ 0 ] ) {
-						case "!1":
-							var teamMembers = Object.keys( players ).filter( p => players[ p ].team == 0 );
-							if( teamMembers.length > 0 ) {
-								teamMembers.forEach( p => {
-									var dir = Math.PI / 180 * getRandomInt( 180 );
-									addPuppy( boxX[ 0 ] + 5 * Math.cos( dir ), boxY[ 0 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
-									players[ p ].alive = false;
-								});
-								explode( boxX[ 0 ], boxY[ 0 ], 150, 50, 100 );
-								// gamePhase = "sacrifice";
-							}
-							else {
-								gamePhase = "survived";
-								showJoin( false );
-								showMenu( false );
-								showGame( false );
-								showSacrifice( false );
-								showEndgame( true );
-								createPuppyEnd();
-							}
-							break;
-						case "!2":
-							var teamMembers = Object.keys( players ).filter( p => players[ p ].team == 1 );
-							if( teamMembers.length > 0 ) {
-								teamMembers.forEach( p => {
-									var dir = Math.PI / 180 * getRandomInt( 180 );
-									addPuppy( boxX[ 1 ] + 5 * Math.cos( dir ), boxY[ 1 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
-									players[ p ].alive = false;
-								});
-								explode( boxX[ 1 ], boxY[ 1 ], 150, 50, 100 );
-								// gamePhase = "sacrifice";
-							}
-							else {
-								gamePhase = "survived";
-								showJoin( false );
-								showMenu( false );
-								showGame( false );
-								showSacrifice( false );
-								showEndgame( true );
-								createPuppyEnd();
-							}
-							break;
-						case "!3":
-							var teamMembers = Object.keys( players ).filter( p => players[ p ].team == 2 );
-							if( teamMembers.length > 0 ) {
-								teamMembers.forEach( p => {
-									var dir = Math.PI / 180 * getRandomInt( 180 );
-									addPuppy( boxX[ 2 ] + 5 * Math.cos( dir ), boxY[ 2 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
-									players[ p ].alive = false;
-								});
-								explode( boxX[ 2 ], boxY[ 2 ], 150, 50, 100 );
-								// gamePhase = "sacrifice";
-							}
-							else {
-								gamePhase = "survived";
-								showJoin( false );
-								showMenu( false );
-								showGame( false );
-								showSacrifice( false );
-								showEndgame( true );
-								createPuppyEnd();
-							}
-							break;
-						case "!4":
-							var teamMembers = Object.keys( players ).filter( p => players[ p ].team == 3 );
-							if( teamMembers.length > 0 ) {
-								teamMembers.forEach( p => {
-									var dir = Math.PI / 180 * getRandomInt( 180 );
-									addPuppy( boxX[ 3 ] + 5 * Math.cos( dir ), boxY[ 3 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
-									players[ p ].alive = false;
-								});
-								explode( boxX[ 3 ], boxY[ 3 ], 150, 50, 100 );
-								// gamePhase = "sacrifice";
-							}
-							else {
-								gamePhase = "survived";
-								showJoin( false );
-								showMenu( false );
-								showGame( false );
-								showSacrifice( false );
-								showEndgame( true );
-								createPuppyEnd();
-							}
-							break;
-						}
-					}
+					// if( isStreamer ) {
+					// 	switch( message.split( " " )[ 0 ] ) {
+					// 	case "!1":
+					// 		var teamMembers = Object.keys( players ).filter( p => players[ p ].team == 0 );
+					// 		if( teamMembers.length > 0 ) {
+					// 			teamMembers.forEach( p => {
+					// 				var dir = Math.PI / 180 * getRandomInt( 180 );
+					// 				addPuppy( boxX[ 0 ] + 5 * Math.cos( dir ), boxY[ 0 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+					// 				players[ p ].alive = false;
+					// 			});
+					// 			explode( boxX[ 0 ], boxY[ 0 ], 150, 50, 100 );
+					// 			// gamePhase = "sacrifice";
+					// 		}
+					// 		else {
+					// 			gamePhase = "survived";
+					// 			showJoin( false );
+					// 			showMenu( false );
+					// 			showGame( false );
+					// 			showSacrifice( false );
+					// 			showEndgame( true );
+					// 			createPuppyEnd();
+					// 		}
+					// 		break;
+					// 	case "!2":
+					// 		var teamMembers = Object.keys( players ).filter( p => players[ p ].team == 1 );
+					// 		if( teamMembers.length > 0 ) {
+					// 			teamMembers.forEach( p => {
+					// 				var dir = Math.PI / 180 * getRandomInt( 180 );
+					// 				addPuppy( boxX[ 1 ] + 5 * Math.cos( dir ), boxY[ 1 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+					// 				players[ p ].alive = false;
+					// 			});
+					// 			explode( boxX[ 1 ], boxY[ 1 ], 150, 50, 100 );
+					// 			// gamePhase = "sacrifice";
+					// 		}
+					// 		else {
+					// 			gamePhase = "survived";
+					// 			showJoin( false );
+					// 			showMenu( false );
+					// 			showGame( false );
+					// 			showSacrifice( false );
+					// 			showEndgame( true );
+					// 			createPuppyEnd();
+					// 		}
+					// 		break;
+					// 	case "!3":
+					// 		var teamMembers = Object.keys( players ).filter( p => players[ p ].team == 2 );
+					// 		if( teamMembers.length > 0 ) {
+					// 			teamMembers.forEach( p => {
+					// 				var dir = Math.PI / 180 * getRandomInt( 180 );
+					// 				addPuppy( boxX[ 2 ] + 5 * Math.cos( dir ), boxY[ 2 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+					// 				players[ p ].alive = false;
+					// 			});
+					// 			explode( boxX[ 2 ], boxY[ 2 ], 150, 50, 100 );
+					// 			// gamePhase = "sacrifice";
+					// 		}
+					// 		else {
+					// 			gamePhase = "survived";
+					// 			showJoin( false );
+					// 			showMenu( false );
+					// 			showGame( false );
+					// 			showSacrifice( false );
+					// 			showEndgame( true );
+					// 			createPuppyEnd();
+					// 		}
+					// 		break;
+					// 	case "!4":
+					// 		var teamMembers = Object.keys( players ).filter( p => players[ p ].team == 3 );
+					// 		if( teamMembers.length > 0 ) {
+					// 			teamMembers.forEach( p => {
+					// 				var dir = Math.PI / 180 * getRandomInt( 180 );
+					// 				addPuppy( boxX[ 3 ] + 5 * Math.cos( dir ), boxY[ 3 ] - Math.abs( 5 * Math.sin( dir ) ), p, players[ p ].color );
+					// 				players[ p ].alive = false;
+					// 			});
+					// 			explode( boxX[ 3 ], boxY[ 3 ], 150, 50, 100 );
+					// 			// gamePhase = "sacrifice";
+					// 		}
+					// 		else {
+					// 			gamePhase = "survived";
+					// 			showJoin( false );
+					// 			showMenu( false );
+					// 			showGame( false );
+					// 			showSacrifice( false );
+					// 			showEndgame( true );
+					// 			createPuppyEnd();
+					// 		}
+					// 		break;
+					// 	}
+					// }
 					break;
 				}
 
