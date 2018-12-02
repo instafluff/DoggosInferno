@@ -35,7 +35,7 @@
 		var game = new Phaser.Game(config);
 		var phaser = undefined;
 		var refreshTimer = null;
-		var puppyimages = [ "puppy1", "puppy2", "puppy3" ];
+		var puppyimages = [ "puppy1", "puppy2", "puppy3", "puppy4", "puppy5", "puppy6" ];
 		var pillars = {};
 		var bricks = [];
 		var floor = null;
@@ -45,6 +45,7 @@
 		var readyPuppies = {};
 		var explodedPuppies = {};
 		var menuGroup = undefined;
+		var gameTitle = undefined;
 		var boxes = [];
 		var boxesText = [];
 		var round = 0;
@@ -86,12 +87,14 @@
 			this.load.image('pillar', 'images/pillar_middle.png');
 			this.load.image('smoke_cloud', 'images/smoke.png');
 			this.load.image('hammer', 'images/hammer.png');
-			// this.load.image('puppy', 'images/Pupachu.png');
 			this.load.image("cat1", 'images/catastrophe1.png');
 			this.load.image("cat2", 'images/catastrophe2.png');
 			this.load.image(puppyimages[ 0 ], 'images/doggo1.png');
 			this.load.image(puppyimages[ 1 ], 'images/doggo2.png');
 			this.load.image(puppyimages[ 2 ], 'images/doggo3.png');
+			this.load.image(puppyimages[ 3 ], 'images/doggo4.png');
+			this.load.image(puppyimages[ 4 ], 'images/doggo5.png');
+			this.load.image(puppyimages[ 5 ], 'images/Pupachu.png');
 			this.load.audio('catastrophe', ['sounds/catastrophe.mp3']);
 			this.load.audio('lavaambience', ['sounds/lava_2.mp3']);
 			this.load.audio('pup0', ['sounds/pup.mp3']);
@@ -199,38 +202,39 @@
 
 		function createMenu() {
 			// Setup the menu
+			gameTitle = phaser.add.text( width / 2, height / 2 + 200, "Doggo's Inferno", { fontFamily: 'Bubblegum Sans', fontSize: 164, fontStyle: "Bold", color: '#FFD222' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
     		menuGroup = phaser.add.group();
 			boxes.push( menuGroup.create(boxX[ 0 ], boxY[ 0 ], 'box1') );
 			boxes.push( menuGroup.create(boxX[ 1 ], boxY[ 1 ], 'box2') );
 			boxes.push( menuGroup.create(boxX[ 2 ], boxY[ 2 ], 'box3') );
 			boxes.push( menuGroup.create(boxX[ 3 ], boxY[ 3 ], 'box4') );
-			boxesText.push( phaser.add.text( boxX[ 0 ], boxY[ 0 ] + 300, "!1", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 0.5 ) );
-			boxesText.push( phaser.add.text( boxX[ 1 ], boxY[ 1 ] + 300, "!2", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FFD222' } ).setOrigin( 0.5 ) );
-			boxesText.push( phaser.add.text( boxX[ 2 ], boxY[ 2 ] + 300, "!3", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#2DD765' } ).setOrigin( 0.5 ) );
-			boxesText.push( phaser.add.text( boxX[ 3 ], boxY[ 3 ] + 300, "!4", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 ) );
-			roundTimeText = phaser.add.text( 950, 100, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 );
-			joinText = phaser.add.text( 950, 100, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 );
+			boxesText.push( phaser.add.text( boxX[ 0 ], boxY[ 0 ] + 300, "!1", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 0.5 ).setStroke("#333333", 10) );
+			boxesText.push( phaser.add.text( boxX[ 1 ], boxY[ 1 ] + 300, "!2", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FFD222' } ).setOrigin( 0.5 ).setStroke("#333333", 10) );
+			boxesText.push( phaser.add.text( boxX[ 2 ], boxY[ 2 ] + 300, "!3", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#2DD765' } ).setOrigin( 0.5 ).setStroke("#333333", 10) );
+			boxesText.push( phaser.add.text( boxX[ 3 ], boxY[ 3 ] + 300, "!4", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 ).setStroke("#333333", 10) );
+			roundTimeText = phaser.add.text( 950, 100, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
+			joinText = phaser.add.text( 950, 100, "00:00", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#ffffff' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
 			return menuGroup;
 		}
 
 		function createSacrifice() {
 			cat1 = phaser.add.image( 1400, 700, "cat1" );
 			cat2 = phaser.add.image( 1400, 700, "cat2" );
-			catText = phaser.add.text( 1150, 700, "", { fontFamily: 'Gloria Hallelujah', fontSize: 40, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 1, 0.5 );
+			catText = phaser.add.text( 1150, 700, "", { fontFamily: 'Gloria Hallelujah', fontSize: 40, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 1, 0.5 ).setStroke("#333333", 10);
 			cat2.visible = false;
 		}
 
 		function createPuppyEnd() {
-			puppyEndText = phaser.add.text( 960, 300, "THE PUPPIES SURVIVE", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 );
+			puppyEndText = phaser.add.text( 960, 300, "THE PUPPIES SURVIVE", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#6F23FF' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
 			// List of survived puppies
 			var survived = Object.keys( players ).filter( p => players[ p ].alive );
 			console.log( "Survived Players:", survived );
-			puppySurvivors = phaser.add.text( 500, 400, survived.join( "\n" ), { fontFamily: 'Bubblegum Sans', fontSize: 40, fontStyle: "Bold", color: '#ffffff' } );
+			puppySurvivors = phaser.add.text( 500, 400, survived.join( "\n" ), { fontFamily: 'Bubblegum Sans', fontSize: 40, fontStyle: "Bold", color: '#ffffff' } ).setStroke("#333333", 10);
 			return puppyEndText;
 		}
 
 		function createCatpocalypseEnd() {
-			catEndText = phaser.add.text( 960, 300, "CAPTAIN OF CATASTROPHE HAS CONQUERED", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 0.5 );
+			catEndText = phaser.add.text( 960, 300, "CAPTAIN OF CATASTROPHE HAS CONQUERED", { fontFamily: 'Bubblegum Sans', fontSize: 128, fontStyle: "Bold", color: '#FF222D' } ).setOrigin( 0.5 ).setStroke("#333333", 10);
 			return catEndText;
 		}
 
@@ -301,6 +305,7 @@
 
 		function showJoin( shouldShow ) {
 			joinText.visible = shouldShow;
+			gameTitle.visible = shouldShow;
 		}
 
 		function showMenu( shouldShow ) {
@@ -355,6 +360,8 @@
 						puppy.destroy();
 						delete explodedPuppies[ p ];
 					}, 5000 );
+					var deathSound = phaser.sound.add('pupdeath', { loop: false });
+					deathSound.play();
 				});
 				explode( boxX[ index ], boxY[ index ], 150, 50, 100 );
 			}
@@ -443,7 +450,7 @@
 		}
 
 		function attachLabel( body, text, color = "#ffffff" ) {
-			var labelText = phaser.add.text(body.position.x, body.position.y - body.gameObject.height, text, { fontFamily: 'Bubblegum Sans', fontSize: 50, fontStyle: "Bold", color: color } ).setOrigin( 0.5 );
+			var labelText = phaser.add.text(body.position.x, body.position.y - body.gameObject.height, text, { fontFamily: 'Bubblegum Sans', fontSize: 50, fontStyle: "Bold", color: color } ).setOrigin( 0.5 ).setStroke("#333333", 10);
 			labels.push( {
 				label: labelText,
 				body: body
